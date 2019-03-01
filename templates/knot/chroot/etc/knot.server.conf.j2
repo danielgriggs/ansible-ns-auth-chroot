@@ -1,0 +1,38 @@
+#
+# Maintained by Ansible.
+#
+
+server:
+{% if instance_identify	is defined and instance_identify %}
+    identity: "{{ ansible_hostname }}"
+    nsid: "{{ ansible_hostname }}"
+{% else %}
+    identity: ""
+    nsid: ""
+{% endif %}
+    version: ""
+{% if instance.listen is defined %}
+{%  for port, addr_fam in instance.listen|dictsort %}
+{%   if addr_fam.v4_addr is defined %}
+{%    for addr in addr_fam.v4_addr %}
+    listen: {{ addr }}@{{ port }}
+{%    endfor %}
+{%   endif %}
+{%   if addr_fam.v6_addr is defined %}
+{%    for addr in addr_fam.v6_addr %}
+    listen: {{ addr }}@{{ port }}
+{%    endfor %}
+{%   endif %}
+{%  endfor %}
+{% endif %}
+    # User for running the server.
+    user: {{ instance_user }}:{{ instance_group }}
+    rundir: {{ instance_base_dir }}/var/run    
+    pidfile: {{ instance_base_dir }}/var/run/nameserver.pid
+
+{% if instance.rrl_qps is defined %}
+mod-rrl:
+  - id: default
+    rate-limit: {{ instance.rrl_qps }}
+    slip: {{ instance.rr_slip | default("1") }}
+{% endif %}

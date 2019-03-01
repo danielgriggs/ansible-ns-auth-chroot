@@ -1,0 +1,51 @@
+#include <tunables/global>
+
+/usr/local/sbin/nameserver-{{ instance.name }} {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  capability net_bind_service,
+  capability setgid,
+  capability setuid,
+  capability sys_chroot,
+  capability sys_resource,
+  capability net_admin,
+  capability dac_override,
+  capability chown,
+
+  # /etc/bind should be read-only for bind
+  # /var/lib/bind is for dynamically updated zone (and journal) files.
+  # /var/cache/bind is for slave/stub data, since we're not the origin of it.
+  # See /usr/share/doc/bind9/README.Debian.gz
+  {{ instance_base_dir }}/etc/** r,
+  {{ instance_base_dir }}/etc/zones/slave/** rw,
+  {{ instance_base_dir }}/etc/zones/slave/ rw,
+  {{ instance_base_dir }}/var/cache/* rw,
+  {{ instance_base_dir }}/var/cache/ rw,
+  {{ instance_base_dir }}/dev/random r,
+  {{ instance_base_dir }}/dev/urandom r,
+  {{ instance_base_dir }}/dev/zero r,
+
+  {{ instance_base_dir }}/dev/null w,
+  {{ instance_base_dir }}/dev/log w,
+  # grabs it before chrooting.
+  /run/systemd/journal/socket w,
+  /tmp/** rw,
+  /tmp/ rw,
+
+  @{PROC}/net/if_inet6 r,
+  @{PROC}/*/net/if_inet6 r,
+  @{PROC}/sys/net/ipv4/ip_local_port_range r,
+  {{ instance_binary }} mr,
+
+  {{ instance_base_dir }}/var/run/nameserver.pid wr,
+  {{ instance_base_dir }}/var/run/session.key wr,
+  {{ instance_base_dir }}/var/run/managed-keys.bind rw,
+  {{ instance_base_dir }}/var/run/knot.sock rw,
+
+  # some people like to put logs in /var/log/named/ instead of having
+  # syslog do the heavy lifting.
+  {{ instance_base_dir }}/var/log/** rw,
+  {{ instance_base_dir }}/var/log/ rw,
+
+}

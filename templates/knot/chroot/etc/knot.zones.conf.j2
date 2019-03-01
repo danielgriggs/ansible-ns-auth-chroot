@@ -1,0 +1,18 @@
+{%  import 'macros/zones.j2' as zones with context %}
+{%  import 'macros/acl.j2' as acls with context %}
+{%  import 'macros/remote.j2' as remotes with context %}
+#
+# Managed by Ansible.
+#
+{% if instance.zones is defined %}
+{{ acls.acl_from_groups(instance.zones) }}
+{{ remotes.remotes_from_groups(instance.zones) }}
+
+template:
+  - id: default
+    storage: {{ instance_base_dir }}/etc/zones/slave/
+{% if instance.rrl_qps is defined %}
+    global-module: mod-rrl/default
+{% endif %}
+{{ zones.zone_group(instance.zones) }}
+{% endif %}

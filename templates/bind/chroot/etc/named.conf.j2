@@ -1,0 +1,14 @@
+// This is the primary configuration file for the BIND DNS server named.
+//
+// Configuration is generated from Ansible
+//
+// If you are just adding zones, please do that in /etc/bind/named.conf.local
+
+include "/etc/named.keys.conf";
+include "/etc/named.controls.conf";
+include "/etc/named.logging.conf";
+include "/etc/named.acl.conf";
+include "/etc/named.master.conf";
+include "/etc/named.options.conf";
+include "/etc/named.zones.conf";
+#include "/etc/bind/default/named.conf.hints";

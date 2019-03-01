@@ -1,0 +1,15 @@
+[Unit]
+Description=Knot Name Server ({{ instance.server }}) Instance
+After=network.target
+
+[Service]
+Environment=CONFFILE={{ instance_base_dir }}/etc/knot.conf
+ExecStart={{ instance_binary }} --daemonize={{ instance_base_dir }} -c $CONFFILE
+ExecReload=/usr/sbin/knotc -c $CONFFILE reload
+Restart=on-abort
+Type=forking
+SyslogIdentifier={{ instance.name }}
+AppArmorProfile=/usr/local/sbin/nameserver-{{ instance.name }}
+
+[Install]
+WantedBy=multi-user.target

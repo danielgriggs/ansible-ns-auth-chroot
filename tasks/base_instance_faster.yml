@@ -1,0 +1,40 @@
+---
+- name: Set some variables we'll need later.
+  set_fact:
+    instance_base_dir: "{{ nameservice_chroot_base }}/{{ instance.name }}"
+    instance_user: "{{ instance.user| default(nameservice_chroot_defaults.user) }}"
+    instance_group: "{{ instance.group| default(nameservice_chroot_defaults.group) }}"
+    instance_timezone: "{{ instance.timezone| default(nameservice_chroot_defaults.timezone) }}"
+
+- name: Create a group for the user for the instance.
+  group:
+    name: "{{ instance_group }}"
+    state: present
+    system: true
+
+- name: Create the user for the instance.
+  user:
+    name: "{{ instance_user }}"
+    group: "{{ instance_group }}"
+    shell: "/usr/bin/false"
+    createhome: false
+    system: true
+    state: present
+
+- name: Create the base directory
+  file:
+    path: "{{ instance_base_dir }}"
+    state: directory
+
+- name: Upload the chroot creation script.
+  template:
+    src: "shared/create_chroot_base.sh.j2"
+    dest: "{{ instance_base_dir }}/create_chroot_base.sh"
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Run the chroot creation script.
+  command: "{{ instance_base_dir }}/create_chroot_base.sh"
+  args:
+    creates: "{{ instance_base_dir }}/create_chroot_base_complete"

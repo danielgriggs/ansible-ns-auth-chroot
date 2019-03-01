@@ -1,0 +1,21 @@
+#jinja2:lstrip_blocks: True
+{% for hostgroup, hg_data in nameserver_host_groups|dictsort %}
+acl {{ hostgroup }} {
+  {% for server in hg_data %}
+  {{ hostgroup }}_{{ server.server }};
+  {% endfor %}
+};
+
+  {% for server in hg_data %}
+acl {{ hostgroup }}_{{ server.server }} {
+    {% if server.ip is string %}
+  !{ !{{ server.ip }}; any; };
+    {% else %}
+  !{ !{{ server.ip | join('; !') }}; any; };
+    {% endif %}
+    {% if server.tsig is defined %}
+  key {{ server.tsig }};
+    {% endif %}
+};
+  {% endfor %}
+{% endfor %}

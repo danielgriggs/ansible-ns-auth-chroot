@@ -1,0 +1,4 @@
+#!/bin/bash
+exec /usr/local/sbin/rndc -c {{ instance_base_dir }}/etc/rndc.conf "$@"
+
+

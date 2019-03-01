@@ -1,0 +1,17 @@
+[Unit]
+Description=Bind Name Server ({{ instance.name }})
+After=network.target
+
+[Service]
+Environment=CONFFILE=/etc/named.conf
+Environment=CHROOT={{ instance_base_dir }}
+Environment=USER={{ instance_user }}
+Environment=CPUS={{ instance.server_count| default(instance_cpus) }}
+ExecStart={{ instance_binary }} -f -u $USER -t $CHROOT -c $CONFFILE -n $CPUS
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+SyslogIdentifier={{ instance.name }}
+AppArmorProfile=/usr/local/sbin/nameserver-{{ instance.name }}
+
+[Install]
+WantedBy=multi-user.target

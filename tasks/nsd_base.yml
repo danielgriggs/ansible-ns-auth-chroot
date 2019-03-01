@@ -1,0 +1,17 @@
+---
+- name: Install the NSD nameserver.
+  apt:
+    pkg: "{{ nameserver_package_nsd }}"
+    state: present
+    install_recommends: false
+  when: nameserver_package_bind is defined
+  tags:
+    - package
+
+- name: Disable base NSD service.
+  service:
+    name: nsd
+    state: stopped
+    enabled: false
+  tags:
+    - package

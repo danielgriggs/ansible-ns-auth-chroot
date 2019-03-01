@@ -1,0 +1,229 @@
+// File managed by Ansible.
+options {
+    directory "/var/cache/bind";
+    managed-keys-directory "/var/cache/bind/managed-keys";
+    auth-nxdomain no;    # conform to RFC1035
+
+{% if icfg.options is defined %}
+{%   set options = icfg.options %}
+{% elif dcfg.options is defined %}
+{%   set options = dcfg.options %}
+{% else %}
+{%   set options = () %}
+{% endif %}
+
+{% if options.version is defined and options.version %}
+    version "{{ options.version }}";
+{% endif %}
+{% if options.hostname is defined and options.hostname %}
+    hostname {{ options.hostname }};
+{% endif %}
+    server-id {{ dcfg.options.serverid | default("hostname") }};
+{% if options.minimalresponses is defined %}
+    minimal-responses {{ options.minimalresponses }};
+{% else %}
+    minimal-responses yes;
+{% endif %}
+
+{% if icfg.bindings is defined %}
+{%   set bindings = icfg.bindings %}
+{% elif dcfg.bindings is defined %}
+{%   set bindings = dcfg.bindings %}
+{% else %}
+{%   set bindings = () %}
+{% endif %}
+
+{%- if bindings.listen is defined %}
+{%   for port, addresses in bindings.listen|dictsort %}
+    listen-on port {{ port }} {
+{{ addresses|join(";\n")|indent(8, True) }};
+    };
+{%   endfor %}
+{% else %}
+// No declared v4 bindings, Goodluck
+{% endif %}
+
+{%- if bindings.listen_v6 is defined %}
+{% for port, addresses in bindings.listen_v6|dictsort %}
+    listen-on-v6 port {{ port }} {
+{{ addresses|join(";\n")|indent(8, True) }};
+    };
+{%  endfor %}
+{% else %}
+// No declared v6 bindings, *table flip*
+{% endif %}
+
+{% if icfg.access is defined %}
+{%   set access = icfg.access %}
+{% elif dcfg.access is defined %}
+{%   set access = dcfg.access %}
+{% else %}
+{%   set access = () %}
+{% endif %}
+
+{% if access.recursion is defined %}
+    recursion yes;
+    allow-recursion {
+{{ access.recursion|join(";\n")|indent(8, True) }};
+    };
+{% else %}
+    recursion no;
+{% endif %}
+
+{%- if access.transfer is defined %}
+    allow-transfer {
+{{ access.transfer|join(";\n")|indent(8, True) }};
+    };
+{% else %}
+    allow-transfer { none; };
+{% endif %}
+
+{%- if access.query is defined %}
+    allow-query {
+{{ access.query|join(";\n")|indent(8, True) }};
+    };
+{% else %}
+    allow-query { none; };
+{% endif %}
+
+{%- if access.notify is defined %}
+    allow-notify {
+{{ access.notify|join(";\n")|indent(8, True) }};
+    };
+{% else %}
+    allow-notify { none; };
+{% endif %}
+
+{%- if access.blackhole is defined %}
+    blackhole {
+{{ access.blackhole|join(";\n")|indent(8, True) }};
+    };
+{% else %}
+    blackhole { none; };
+{% endif %}
+
+{%- if access.aupdate is defined %}
+    allow-update {
+{{ access.aupdate|join(";\n")|indent(8, True) }};
+    };
+{% else %}
+    allow-update { none; };
+{% endif %}
+
+{% if icfg.security is defined %}
+{%   set sec = icfg.security %}
+{% elif dcfg.security is defined %}
+{%   set sec = dcfg.security %}
+{% else %}
+{%   set sec = () %}
+{% endif %}
+
+{# Enabled is required for TSIG, SIG and DNSSEC #}
+{% if sec.enabled is defined %}
+    dnssec-enable {{ sec.enabled }};
+{% else %}
+    dnssec-enable yes;
+{% endif %}
+
+{# Validation auto, automatically configures the root trust anchor #}
+{# Yes requires explicit setup of a trust anchor #}
+{%- if sec.validation is defined %}
+    dnssec-validation {{ sec.validation }};
+{% else %}
+    dnssec-validation auto;
+{% endif %}
+
+{%- if sec.random_device is defined %}
+    random-device "{{ sec.random_device }}";
+{% else %}
+    random-device "/dev/urandom";
+{% endif %}
+
+{%- if sec.max_rsa_exponent_size is defined %}
+    max-rsa-exponent-size {{ sec.max_rsa_exponent_size }};
+{% else %}
+//  max-rsa-exponent-size 4096;
+{% endif %}
+
+{%- if sec.sig_validity_interval is defined %}
+    sig-validity-interval {{ sec.sig_validity_interval }};
+{% else %}
+//  sig-validity-interval 30;
+{% endif %}
+
+{% if icfg.rrl is defined %}
+{%   set rrl = icfg.rrl %}
+{% elif dcfg.rrl is defined %}
+{%   set rrl = dcfg.rrl %}
+{% else %}
+{%   set rrl = () %}
+{% endif %}
+
+{% if rrl['responses-per-second'] is defined %}
+{%   set rps_default = rrl['responses-per-second'] %}
+{% else %}
+{%   set rps_default = 0 %}
+{% endif%}
+
+{% if rrl.enabled is defined and rrl.enabled %}
+rate-limit {
+{% if rrl.enforce is defined and rrl.enforce %}
+    log-only no;
+{% else %}
+    log-only yes;
+{% endif %}
+    // 0 means no limit
+    responses-per-second {{ rrl['responses-per-second'] | default(rps_default) }};
+    referrals-per-second {{ rrl['referrals-per-second'] | default(rps_default) }};
+    nodata-per-second {{ rrl['nodata-per-second'] | default(rps_default) }};
+    nxdomains-per-second {{ rrl['nxdomains-per-second'] | default(rps_default) }};
+    errors-per-second {{ rrl['errors-per-second'] | default(rps_default) }};
+    all-per-second {{ rrl['all-per-second'] | default(rps_default) }};
+    window {{ rrl.window | default("15") }};
+    ipv4-prefix-length {{ rrl['ipv4-prefix-length'] | default("24") }};
+    ipv6-prefix-length {{ rrl['ipv6-prefix-length'] | default("56")}};
+    slip {{ rrl.slip | default ("2") }};
+    max-table-size {{ rrl['max-table-size'] | default("20000") }};
+    min-table-size {{ rrl['min-table-size'] | default("500") }};
+{%  if rrl['qps-scale'] is defined %}
+    qps-scale {{ rrl['qps-scale'] }};
+{%  endif %}
+{%  if rrl['exempt-clients'] is defined %}
+    exempt-clients {
+        {{ rrl['exempt-clients']|join(";\n")|indent(8, False) }};
+    };
+{%  endif %}
+};
+{% else %}
+// RRL not enabled.
+{% endif %}
+
+{% if icfg.statistics is defined %}
+{%   set stats = icfg.statistics %}
+{% elif dcfg.statistics is defined %}
+{%   set stats = dcfg.statistics %}
+{% else %}
+{%   set stats = () %}
+{% endif %}
+
+{% if stats.enabled is defined and stats.enabled == "yes" %}
+    statistics-file "{{ stats.file|default("") }}";
+    zone-statistics yes;
+{% endif %}
+
+{% if icfg.bind_extra_options is defined %}
+{% for option, value in icfg.bind_extra_options|dictsort %}
+    {{ option }} {{ value }};
+{% endfor %}
+{% endif %}
+
+
+};
+
+{% if icfg.bind_extra_include is defined %}
+{% for value in icfg.bind_extra_include %}
+include "/etc/bind/{{ value }}";
+{% endfor %}
+{% endif %}
+
+

@@ -1,0 +1,85 @@
+---
+# Setup defaults
+nameserver_package_bind: bind9
+nameserver_package_knot: knot
+nameserver_package_nsd: nsd
+nameserver_monitor_downstream: false
+nameserver_monitor_upstream: true
+nameserver_chroot_base: "/var/chroot"
+nameserver_chroot_defaults:
+  timezone: "Zulu"
+  format: bind  # nsd knot
+  target: "/usr/sbin/named"
+  identify: true
+  user: nameservice
+  group: nameservice
+  ext_user: root
+  ctrl_addr: 127.0.0.1
+  ctrl_port: 953
+  listen:
+    53:
+      v4_addr: ['localhost']
+      v6_addr: ['localhost']
+nameserver_global_access:
+  recursion:
+    - none
+  transfer:
+    - none
+  query:
+    - none
+  notify:
+    - none
+  blackhole:
+    - none
+  aupdate:  # update is a reserved word *rageface*
+    - none
+nameserver_log:
+  facility: local1
+  severity: warning
+  statistics: true
+  syslog: true
+  file: true
+nameserver_rrl:
+  enabled: false
+  enforce: false
+  responses-per-second: 0
+  referrals-per-second: 0
+  nodata-per-second: 0
+  nxdomains-per-second: 0
+  errors-per-second: 0
+  all-per-second: 0
+  window: 15
+  qps-scale: 0
+  ipv4-prefix-length: 24
+  ipv6-prefix-length: 56
+  slip: 2
+  max-table-size: 20000
+  min-table-size: 500
+  exempt-clients:
+    - none
+nameserver_acl:
+  deny-all:
+    - none
+  allow-all:
+    - any
+nameserver_missing:
+  security:
+    enable: "yes"
+    validation: "auto"
+    disable_algorithms:
+      null:
+        - "RSASHA1"
+    disable_ds_digests:
+      null:
+        - "SHA-1"
+    random_device: "/dev/urandom"
+    max_rsa_exponent_size: 4096
+    sig_validity_interval: 30
+  # Everything else
+  extra_options:
+    max-journal-size: "100M"
+  options:
+    version: false
+    hostname: false
+    serverid: "hostname"
+    minimalresponses: "yes"

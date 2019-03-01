@@ -1,0 +1,33 @@
+---
+nameserver_templates:
+  bind:
+    - named.conf
+    - rndc.conf
+    - named.acl.conf
+    - named.master.conf
+    - named.controls.conf
+    - named.keys.conf
+    - named.logging.conf
+    - named.options.conf
+    - named.zones.conf
+  knot:
+    - knot.conf
+    - knot.acl.conf
+    - knot.server.conf
+    # - knot.control.conf
+    - knot.logging.conf
+    # - knot.statistics.conf
+    # - knot.rrl.conf
+    - knot.keys.conf
+    - knot.template.conf
+    - knot.zones.conf
+  nsd:
+    - nsd.conf
+    - nsd.server.conf
+    - nsd.keys.conf
+    - nsd.template.conf
+    - nsd.zones.conf
+nameserver_binaries:
+  bind: /usr/sbin/named
+  knot: /usr/sbin/knotd
+  nsd: /usr/sbin/nsd

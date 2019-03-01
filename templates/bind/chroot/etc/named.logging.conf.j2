@@ -1,0 +1,106 @@
+#
+# Ansible Managed.
+#
+
+logging {
+{% set severity = instance.log_severity if instance.log_severity is defined else nameserver_log.severity %}
+{% set facility = instance.log_facility if instance.log_facility is defined else nameserver_log.facility %}
+{% set log_file = instance.log_file if instance.log_file is defined else nameserver_log.file %}
+{% set log_syslog = instance.log_syslog if instance.log_syslog is defined else nameserver_log.syslog %}
+
+{% if not log_syslog and not log_file %}
+  category default {
+    null;
+  };
+{% endif %}
+
+{% if log_syslog %}
+  channel syslog {
+   syslog {{ facility }};
+   severity {{ severity }};
+  };
+{% endif %}
+{% if log_file %}
+  channel ratelimit {
+   file "/var/log/rate-limit.log" versions 14 size 10M;
+   severity info;
+   print-time yes;
+   print-severity yes;
+   print-category no;
+  };
+  channel security {
+   file "/var/log/security.log" versions 14 size 10M;
+   severity info;
+   print-time yes;
+   print-severity yes;
+   print-category no;
+  };
+  channel transfers {
+   file "/var/log/transfers.log" versions 14 size 10M;
+   severity info;
+   print-time yes;
+   print-severity yes;
+   print-category no;
+  };
+  channel default_log {
+   file "/var/log/default.log" versions 14 size 10M;
+   severity {{ severity }};
+   print-time yes;
+   print-severity yes;
+   print-category no;
+  };
+{% endif %}
+
+{% if log_file or log_syslog %}
+  category default {
+{% if log_file %}
+    "default_log";
+{% endif %}
+{% if log_syslog %}
+    "syslog";
+{% endif %}
+  };
+
+  category notify {
+{% if log_file %}
+    "transfers";
+{% endif %}
+{% if log_syslog %}
+    "syslog";
+{% endif %}
+  };
+  category rate-limit {
+{% if log_file %}
+    "ratelimit";
+{% endif %}
+{% if log_syslog %}
+    "syslog";
+{% endif %}
+  };
+  category security {
+{% if log_file %}
+    "security";
+{% endif %}
+{% if log_syslog %}
+    "syslog";
+{% endif %}
+  };
+  category xfer-in {
+{% if log_file %}
+    "transfers";
+{% endif %}
+{% if log_syslog %}
+    "syslog";
+{% endif %}
+  };
+  category xfer-out {
+{% if log_file %}
+    "transfers";
+{% endif %}
+{% if log_syslog %}
+    "syslog";
+{% endif %}
+  };
+{% endif %}
+
+};

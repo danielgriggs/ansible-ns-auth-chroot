@@ -1,0 +1,25 @@
+---
+- name: Add the CZ.NIC Knot repository
+  apt_repository:
+    update_cache: true
+    repo: 'ppa:cz.nic-labs/knot-dns'
+
+- name: Update the Apt repository.
+  apt:
+
+- name: Install the Knot Authoritative Server.
+  apt:
+    pkg: "{{ nameserver_package_knot }}"
+    state: present
+    install_recommends: false
+  when: nameserver_package_knot is defined
+  tags:
+    - package
+
+- name: Disabled base Knot service.
+  service:
+    name: knot
+    state: stopped
+    enabled: false
+  tags:
+    - package

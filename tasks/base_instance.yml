@@ -1,0 +1,164 @@
+---
+- name: Set some variables we'll need later.
+  set_fact:
+    instance_base_dir: "{{ nameserver_chroot_base }}/{{ instance.name }}"
+    instance_user: "{{ instance.user| default(nameserver_chroot_defaults.user) }}"
+    instance_group: "{{ instance.group| default(nameserver_chroot_defaults.group) }}"
+    instance_timezone: "{{ instance.timezone| default(nameserver_chroot_defaults.timezone) }}"
+    instance_binary: "{{ instance.target| default(nameserver_binaries[instance.server]) }}"
+    instance_identify: "{{ instance.identify| default(nameserver_chroot_defaults.identify) }}"
+    instance_cpus: "{{ ansible_processor_cores| default('1') }}"
+    instance_idx: "{{ ns_idx }}"
+  tags:
+    - always
+
+- name: Create a group for the user for the instance.
+  group:
+    name: "{{ instance_group }}"
+    state: present
+    system: true
+
+- name: Create the user for the instance.
+  user:
+    name: "{{ instance_user }}"
+    group: "{{ instance_group }}"
+    shell: "/usr/bin/false"
+    createhome: false
+    system: true
+    state: present
+
+- name: Create base directories (non-writeable)
+  file:
+    path: "{{ instance_base_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  loop:
+    - dev
+    - var/cache
+    - etc/zones/default
+  tags:
+    - firsttime
+
+- name: Create base directories (writeable, for ext_group)
+  file:
+    path: "{{ instance_base_dir }}/{{ item }}"
+    state: directory
+    mode: "0775"
+    group: "{{ ext_group| default('root') }}"
+    owner: root
+  loop:
+    - etc/zones/master
+    - etc/external
+  tags:
+    - firsttime
+
+- name: Create base directories (writeable)
+  file:
+    path: "{{ instance_base_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ instance_user }}"
+    group: "{{ instance_group }}"
+  with_items:
+    - etc/zones/slave
+    - var/cache/managed-keys
+    - var/run
+    - var/log
+  tags:
+    - firsttime
+
+- name: Create common device nodes
+  command: "/bin/mknod -m 0666 {{ instance_base_dir }}/{{ item.file }} {{ item.attrib }}"
+  args:
+    creates: "{{ instance_base_dir }}/{{ item.file }}"
+  loop:
+    - file: 'dev/null'
+      attrib: 'c 1 3'
+    - file: 'dev/zero'
+      attrib: 'c 1 5'
+    - file: 'dev/random'
+      attrib: 'c 1 9'
+    - file: 'dev/urandom'
+      attrib: 'c 1 9'
+  # No that's not a mistype, we don't actually want random, we want urandom.
+  tags:
+    - firsttime
+
+- name: Setup timezone for this instance
+  file:
+    src: "/usr/share/zoneinfo/{{ instance_timezone }}"
+    state: link
+    follow: true
+    path: "{{ instance_base_dir }}/etc/localtime"
+    force: true
+  tags:
+    - firsttime
+
+- name: Template debugging data
+  template:
+    src: "shared/debugging_information.json.j2"
+    dest: "{{ instance_base_dir }}/debugging_information.json"
+  tags:
+    - template
+
+- name: Systemd startup script.
+  template:
+    src: "{{ instance.server}}/startup-scripts/systemd.service.j2"
+    dest: "/etc/systemd/system/nameserver-{{ instance.name }}.service"
+    mode: "0644"
+    owner: root
+    group: root
+  notify:
+    - reload systemd
+  tags:
+    - template
+    - systemd
+
+- name: Enable Systemd module for startup.
+  systemd:
+    enabled: true
+    name: "nameserver-{{ instance.name }}"
+  tags:
+    - systemd
+
+- name: Apparmor Profile write out.
+  template:
+    src: "{{ instance.server}}/startup-scripts/usr.local.sbin.nameserver.j2"
+    dest: "/etc/apparmor.d/usr.local.sbin.nameserver-{{ instance.name }}"
+    mode: "0644"
+    owner: root
+    group: root
+  register: aa_change
+  tags:
+    - template
+    - systemd
+
+- name: Apparmor Profile load
+  command: "/sbin/apparmor_parser -r /etc/apparmor.d/usr.local.sbin.nameserver-{{ instance.name }}"
+  when: aa_change is changed
+
+- name: Setup control scripts.
+  template:
+    src: "{{ instance.server}}/startup-scripts/nameserver-control.j2"
+    dest: "/usr/sbin/nameserver-{{ instance.name }}"
+    mode: "0755"
+    owner: root
+    group: root
+  tags:
+    - template
+
+- name: Send main configuration.
+  template:
+    src: "{{ instance.server }}/chroot/etc/{{ item }}.j2"
+    dest: "{{ instance_base_dir }}/etc/{{ item }}"
+    mode: "0644"
+    owner: root
+    group: root
+  loop: "{{ nameserver_templates[instance.server]|flatten(levels=1) }}"
+  tags:
+    - template
+
+- name: Setup per instance exceptions.
+  include_tasks: "{{ instance.server }}_instance.yml"

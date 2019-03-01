@@ -1,0 +1,9 @@
+#
+# Managed by Ansible
+#
+include "/etc/rndc.key.conf";
+controls {
+    inet 127.0.0.1 port {{ 953 + instance_idx }} 
+            allow { 127.0.0.1; }
+ 	    keys { "rndc-key"; };
+};

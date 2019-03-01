@@ -1,0 +1,61 @@
+#
+# Maintained by Ansible.
+#
+{% set log_file = instance.log_file if instance.log_file is defined else nameserver_log.file %}
+{% set severity = instance.log_severity if instance.log_severity is defined else nameserver_log.severity %}
+
+server:
+{% if instance_identify	is defined and instance_identify %}
+    identity: "{{ ansible_hostname }}"
+    nsid: "ascii_{{ ansible_hostname }}"
+{% else	%}
+    identity: ""
+    nsid: ""
+{% endif %}
+    reuseport: yes
+    server-count: {{ instance.server_count| default(instance_cpus) }}
+    username: {{ instance_user }}
+    zonesdir: {{ instance_base_dir }}/
+    pidfile: var/run/nameserver.pid
+    database: etc/zones/slave/nsd/zone.db
+    xfrdfile: var/run/xfrd.db
+    zonelistfile: etc/zones/slave/nsd/zone.list
+    xfrdir: etc/zones/slave/nsd/xfrtmp/
+{% if instance.listen is defined %}
+{%  for port, addr_fam in instance.listen|dictsort %}
+{%   if addr_fam.v4_addr is defined %}
+{%    for addr in addr_fam.v4_addr %}
+    ip-address: {{ addr }}@{{ port }}
+{%    endfor %}
+{%   endif %}
+{%   if addr_fam.v6_addr is defined %}
+{%    for addr in addr_fam.v6_addr %}
+    ip-address: {{ addr }}@{{ port }}
+{%    endfor %}
+{%   endif %}
+{%  endfor %}
+{% endif %}
+    hide-version: yes
+
+{# Sorry folks, NSD is pretty limited when it comes to logging #}
+{% if log_file %}
+    logfile: var/log/nsd.log
+{% endif %}
+{% if severity in ["critical", "error", "warning"] %}
+    verbosity: 0
+{% elif severity in ["notice"] %}
+    verbosity: 1
+{% elif severity in ["info"] %}
+    verbosity: 2
+{% elif severity in ["debug"] %}
+    verbosity: 3
+{% else %}
+    # Unknown log level {{ severity }}
+    # Should be one of critical, error, warning, notice, info, debug
+    verbosity: 3
+{% endif %}
+
+{% if instance.rrl_qps is defined %}
+    rrl-ratelimit: {{ instance.rrl_qps }}
+    rrl-slip: {{ instance.rrl_slip | default("1") }}
+{% endif %}

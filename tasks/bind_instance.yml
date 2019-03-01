@@ -1,0 +1,13 @@
+---
+- name: Generate RNDC key for each instance.
+  command: /usr/sbin/rndc-confgen -a -A hmac-sha512 -r /dev/urandom -c rndc.key.conf
+  args:
+    chdir: "{{ instance_base_dir }}/etc"
+    creates: rndc.key.conf
+
+- name: Change the permissions on the RNDC file.
+  file:
+    path: "{{ instance_base_dir }}/etc/rndc.key.conf"
+    owner: "{{ instance_user }}"
+    group: "{{ instance_group }}"
+    mode: "0640"

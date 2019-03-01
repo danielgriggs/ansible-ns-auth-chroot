@@ -1,0 +1,52 @@
+{% macro remotes_from_groups(zone_groups) %}
+remote:
+{%  if instance.zones is string %}
+# One group called "{{ zone_groups }}"
+{{   from_group(instance.zones) -}}
+{%  else %}
+{%   for group_name in instance.zones %}
+# Processing zone group "{{ group_name }}"
+{{    from_group(group_name) -}}
+{%   endfor %}
+{%  endif %}
+{% endmacro %}
+
+
+{% macro from_group(group_name) %}
+{% if nameserver_zone_groups[group_name] is defined %}
+{%  set zone_set = nameserver_zone_groups[group_name] %}
+{% if zone_set.settings.downstream is defined %}
+{{ get_hostgroup(zone_set.settings.downstream) -}}
+{% endif %}{% if zone_set.settings.upstream is defined %}
+{{ get_hostgroup(zone_set.settings.upstream) -}}
+{% endif %}
+{% else %}
+# Group {{ group_name }} has not been defined
+{% endif %}
+{% endmacro %}
+
+{% macro get_hostgroup(hostgroup) %}
+{%-  if nameserver_host_groups is defined and
+          nameserver_host_groups[hostgroup] is defined %}
+{%-   for host in nameserver_host_groups[hostgroup] %}
+{{ get_host(host,hostgroup) -}}
+{%-   endfor %}
+{%-  else %}
+# Hostgroup not found.
+{%-  endif %}
+{%- endmacro %}
+
+{% macro get_host(host,hostgroup) %}
+  - id: {{ host.server }}
+    address: {{ host.ip }}
+{% if host.tsig is defined %}
+    key: {{ host.tsig }}
+{% endif %}
+{% if instance.source_v6 is defined %}
+    via: {{ instance.source_v6 }}
+{% endif %}
+{% if instance.source_v4 is defined %}
+    via: {{ instance.source_v4 }}
+{% endif %}
+{% endmacro %}
+

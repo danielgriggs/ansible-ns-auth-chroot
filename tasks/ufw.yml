@@ -1,0 +1,17 @@
+---
+- name: Setup UFW Rules file.
+  register: ufw_rules
+  template:
+    src: "shared/ufw_nameserver.j2"
+    dest: "/usr/local/sbin/ufw_nameserver"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Delete previous rules.
+  command: /usr/local/sbin/ufw_nameserver stop
+  when: ufw_rules is changed
+
+- name: Add latest rules.
+  command: /usr/local/sbin/ufw_nameserver stop
+  when: ufw_rules is changed

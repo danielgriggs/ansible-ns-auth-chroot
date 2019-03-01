@@ -1,0 +1,7 @@
+#
+# Managed by Ansible.
+#
+{%  import 'macros/patterns.j2' as macros with context %}
+{% if instance.zones is defined %}
+{{ macros.zone_group(instance.zones) }}
+{% endif %}

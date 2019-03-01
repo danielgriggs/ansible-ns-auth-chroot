@@ -1,0 +1,16 @@
+[Unit]
+Description=NSD Name Server ({{ instance.name }}) Instance
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+Environment=CONFFILE={{ instance_base_dir }}/etc/nsd.conf
+ExecStart={{ instance_binary }} -d -u {{ instance_user }} -t {{ instance_base_dir }} -c $CONFFILE
+ExecReload=/usr/sbin/nsd-control -c $CONFFILE reload
+Restart=on-failure
+SyslogIdentifier={{ instance.name }}
+AppArmorProfile=/usr/local/sbin/nameserver-{{ instance.name }}
+
+[Install]
+WantedBy=multi-user.target

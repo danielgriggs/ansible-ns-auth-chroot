@@ -1,0 +1,23 @@
+// ICFG
+{{ icfg|to_nice_json }}
+
+// DCFG
+{{ dcfg|to_nice_json }}
+
+// bind_chroot_domain_group
+{% if bind_chroot_domain_group is defined %}
+{{ bind_chroot_domain_group|to_nice_json }}
+{% else %}
+// Not found :(
+{% endif %}
+
+// bind_chroot_host_group
+{% if bind_chroot_host_group is defined %}
+{{ bind_chroot_host_group|to_nice_json }}
+{% else %}
+// Not found :(
+{% endif %}
+
+AA target:    {{ target_aa | default("// No target for aa") }}
+Named targte: {{ target_bin| default("// No target for named") }}
+

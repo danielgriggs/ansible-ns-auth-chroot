@@ -1,0 +1,11 @@
+---
+- include: nameserver.yml
+  become: true
+  tags:
+    - nameserver
+
+- include: ufw.yml
+  become: true
+  tags:
+    - ufw
+    - nameserver

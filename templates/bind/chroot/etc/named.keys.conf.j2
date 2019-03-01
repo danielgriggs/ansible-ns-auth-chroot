@@ -1,0 +1,12 @@
+{% if nameserver_tsig_keys is defined %}
+{% for name, data in nameserver_tsig_keys| dictsort %}
+key "{{ name }}" {
+    algorithm {{ data.algorithm }};
+    secret "{{ data.key }}";
+};
+
+{% endfor %}
+{% else %}
+// No keys defined.
+{% endif %}
+

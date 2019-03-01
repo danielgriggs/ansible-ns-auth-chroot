@@ -1,0 +1,165 @@
+---
+nameserver_instances:
+  - name: knot
+    index: 0
+    server: knot
+    log_syslog: true
+    log_file: true
+    log_severity: info
+    source_v4: 192.168.0.1
+    source_v6: 2001:dce:1::1
+    listen_v4:
+      53:
+        - 192.168.0.1
+    listen_v6:
+      53:
+        - 2001:dce:1::1
+    listen:
+      53:
+        v4_addr:
+          - 192.168.0.1
+        v6_addr:
+          - 2001:dce:1::1
+    zones:
+      - knot-group
+    rrl_qps: 400
+    rrl_slip: 2
+  - name: bind
+    index: 1
+    server: bind
+    target: /usr/sbin/named
+    log_syslog: true
+    log_file: false
+    log_severity: info
+    source_v4: 192.168.0.2
+    source_v6: 2001:dce:1::2
+    listen_v4:
+      53:
+        - 192.168.0.2
+    listen_v6:
+      53:
+        - 2001:dce:1::2
+    listen:
+      53:
+        v4_addr:
+          - 192.168.0.2
+        v6_addr:
+          - 2001:dce:1::2
+    zones:
+      - bind-group
+    rrl_qps: 400
+    rrl_slip: 2
+  - name: nsd
+    index: 2
+    server: nsd
+    log_syslog: true
+    log_file: false
+    log_severity: info
+    source_v4: 192.168.0.3
+    source_v6: 2001:dce:1::3
+    listen_v4:
+      53:
+        - 192.168.0.3
+    listen_v6:
+      53:
+        - 2001:dce:1::3
+    listen:
+      53:
+        v4_addr:
+          - 192.168.0.3
+        v6_addr:
+          - 2001:dce:1::3
+    zones:
+      - nsd-group
+    rrl_qps: 400
+    rrl_slip: 2
+  - name: source
+    index: 3
+    server: bind
+    target: /usr/sbin/named
+    log_syslog: true
+    log_file: true
+    log_severity: info
+    source_v4: 192.168.0.4
+    source_v6: 2001:dce:1::4
+    listen_v4:
+      53:
+        - 192.168.0.4
+    listen_v6:
+      53:
+        - 2001:dce:1::4
+    listen:
+      53:
+        v4_addr:
+          - 192.168.0.4
+        v6_addr:
+          - 2001:dce:1::4
+    zones:
+      - source-group
+    rrl_qps: 400
+    rrl_slip: 2
+
+nameserver_zone_groups:
+  source-group:
+    settings:
+      downstream: downstream
+    zones:
+      - name: 1.example
+      - name: 2.example
+      - name: 3.example
+  nsd-group:
+    settings:
+      upstream: upstream-nsd
+    zones:
+      - name: 1.example
+      - name: 2.example
+      - name: 3.example
+  bind-group:
+    settings:
+      upstream: upstream-bind
+    zones:
+      - name: 1.example
+      - name: 2.example
+      - name: 3.example
+  knot-group:
+    settings:
+      upstream: upstream-knot
+    zones:
+      - name: 1.example
+      - name: 2.example
+      - name: 3.example
+
+nameserver_host_groups:
+  upstream-nsd:
+    - server: master1
+      ip: 192.168.0.4
+      tsig: nsd-tsig
+  upstream-bind:
+    - server: master1
+      ip: 192.168.0.4
+      tsig: bind-tsig
+  upstream-knot:
+    - server: master1
+      ip: 192.168.0.4
+      tsig: knot-tsig
+  downstream:
+    - server: knot-slave
+      ip: 192.168.0.1
+      tsig: knot-tsig
+    - server: bind-slave
+      ip: 192.168.0.2
+      tsig: bind-tsig
+    - server: nsd-slave
+      ip: 192.168.0.3
+      tsig: nsd-tsig
+
+nameserver_tsig_keys:
+  nsd-tsig:
+    key: 'S2aGtMPq4MHOFhdvrYQTPUwdiShL+DNfejCjrLtmLRcZ+x+/TsKoHpnwtVlf9qGZH8nC7elAAkswMJg4uJcaoQ=='
+    algorithm: hmac-sha512
+  bind-tsig:
+    key: 'S2aGtMPq4MHOFhdvrYQTPUwdiShL+DNfejCjrLtmLRcZ+x+/TsKoHpnwtVlf9qGZH8nC7elAAkswMJg4uJcaoQ=='
+    algorithm: hmac-sha512
+  knot-tsig:
+    key: 'S2aGtMPq4MHOFhdvrYQTPUwdiShL+DNfejCjrLtmLRcZ+x+/TsKoHpnwtVlf9qGZH8nC7elAAkswMJg4uJcaoQ=='
+    algorithm: hmac-sha512

@@ -1,0 +1,67 @@
+#!/bin/bash
+
+case "$1" in
+add)
+  echo "Adding rules to UFW allow instance traffic"
+{% for instance in nameserver_instances %}
+{%   if instance.listen is defined %}
+{%     for port, addr_fam in instance.listen|dictsort %}
+{%       if addr_fam.v4_addr is defined %}
+{%         for addr in addr_fam.v4_addr %}
+  ufw allow in proto tcp to {{ addr }} port {{ port }} comment "{{ instance.name }} (tcp/v4)"
+  ufw allow in proto udp to {{ addr }} port {{ port }} comment "{{ instance.name }} (udp/v4)"
+{%         endfor %}
+{%       endif %}
+{%       if addr_fam.v6_addr is defined %}
+{%         for addr in addr_fam.v6_addr %}
+  ufw allow in proto tcp to {{ addr }} port {{ port }} comment "{{ instance.name }} (tcp/v6)"
+  ufw allow in proto udp to {{ addr }} port {{ port }} comment "{{ instance.name }} (udp/v6)"
+{%         endfor %}
+{%       endif %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+  echo "Setting defaults to reject other traffic."
+{% for instance in nameserver_instances %}
+{%   if instance.listen is defined %}
+{%     for port, addr_fam in instance.listen|dictsort %}
+  ufw reject in proto tcp to any port {{ port }} comment "Default deny {{ port }} (tcp)"
+  ufw reject in proto udp to any port {{ port }} comment "Default deny {{ port }} (udp)"
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+  ;;
+delete)
+  echo "Deleting rules from UFW"
+{% for instance in nameserver_instances %}
+{%   if instance.listen is defined %}
+{%     for port, addr_fam in instance.listen|dictsort %}
+{%       if addr_fam.v4_addr is defined %}
+{%         for addr in addr_fam.v4_addr %}
+  ufw delete allow in proto tcp to {{ addr }} port {{ port }} comment "{{ instance.name }} (tcp/v4)"
+  ufw delete allow in proto udp to {{ addr }} port {{ port }} comment "{{ instance.name }} (udp/v4)"
+{%         endfor %}
+{%       endif %}
+{%       if addr_fam.v6_addr is defined %}
+{%         for addr in addr_fam.v6_addr %}
+  ufw delete allow in proto tcp to {{ addr }} port {{ port }} comment "{{ instance.name }} (tcp/v6)"
+  ufw delete allow in proto udp to {{ addr }} port {{ port }} comment "{{ instance.name }} (udp/v6)"
+{%         endfor %}
+{%       endif %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+  echo "Deleting defaults to reject other traffic."
+{% for instance in nameserver_instances %}
+{%   if instance.listen is defined %}
+{%     for port, addr_fam in instance.listen|dictsort %}
+  ufw delete reject in proto tcp to any port {{ port }} comment "Default deny {{ port }} (tcp)"
+  ufw delete reject in proto udp to any port {{ port }} comment "Default deny {{ port }} (udp)"
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+  ;;
+*)
+  echo "Usage: ufw_nameserver [add|delete]"
+  ;;
+esac

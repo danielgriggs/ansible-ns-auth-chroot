@@ -1,0 +1,21 @@
+#jinja2:lstrip_blocks: True
+{% macro send_to(hostgroup) %}
+ {{ hostgroup }} {
+  {% for server in hg_data %}
+  // {{ server.server }}
+    {% if server.ip is string %}
+  {{ server.ip }} port {{ server.port | default(53) }}
+      {% if server.tsig is defined %}
+      key {{ server.tsig }};
+      {% endif %}
+    {% else %}
+      {% for addr in server.ip %}
+  {{ addr }} port {{ server.port | default(53) }}
+        {% if server.tsig is defined %}
+      key {{ server.tsig }};
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+};
+{% endmacro %}

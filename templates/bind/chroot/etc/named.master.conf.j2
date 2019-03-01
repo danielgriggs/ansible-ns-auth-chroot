@@ -1,0 +1,22 @@
+#jinja2:lstrip_blocks: True
+{% for hostgroup, hg_data in nameserver_host_groups|dictsort %}
+masters {{ hostgroup }} {
+  {% for server in hg_data %}
+  // {{ server.server }}
+    {% if server.ip is string %}
+  {{ server.ip }} port {{ server.port | default(53) }}
+      {% if server.tsig is defined %}
+      key {{ server.tsig }};
+      {% endif %}
+    {% else %}
+      {% for addr in server.ip %}
+  {{ addr }} port {{ server.port | default(53) }}
+        {% if server.tsig is defined %}
+      key {{ server.tsig }};
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+};
+
+{% endfor %}

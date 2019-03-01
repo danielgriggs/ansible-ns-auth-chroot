@@ -1,0 +1,48 @@
+{% macro zone_group(zone_groups) %}
+zone:
+{%  if instance.zones is string %}
+# One group called "{{ zone_groups }}"
+{{   full_zone(instance.zones) }}
+{%  else %}
+{%   for group_name in instance.zones %}
+# Processing zone group "{{ group_name }}"
+{{    full_zone(group_name) }}
+{%   endfor %}
+{%  endif %}
+{% endmacro %}
+
+
+{% macro full_zone(group_name) %}
+{% if nameserver_zone_groups[group_name] is defined %}
+{%  set zone_set = nameserver_zone_groups[group_name] %}
+# Upstream Group: {{ zone_set.settings.upstream if zone_set.settings.upstream is defined else "Not defined" }}
+# Downstream Group: {{ zone_set.settings.downstream if zone_set.settings.downstream is defined else "Not defined" }}
+{% for zone in zone_set.zones %}
+  - domain: {{ zone.name }}
+{{ get_acls(zone_set.settings) }}
+{{ get_masters(zone_set.settings) }}
+
+{% endfor %}
+{% else %}
+# Zone group {{ group_name }} has not been defined
+{% endif %}
+{% endmacro -%}
+
+{%- macro get_acls(settings) -%}
+{%- if settings.upstream is defined and nameserver_host_groups[settings.upstream] is defined -%}
+{{ get_line(nameserver_host_groups[settings.upstream],"acl") }}
+{%- endif -%}
+{%- if settings.downstream is defined and nameserver_host_groups[settings.downstream] is defined -%}
+{{ get_line(nameserver_host_groups[settings.downstream],"acl") }}
+{%- endif -%}
+{% endmacro -%}
+
+{%- macro get_masters(settings) -%}
+{%- if settings.upstream is defined and nameserver_host_groups[settings.upstream] is defined -%}
+{{ get_line(nameserver_host_groups[settings.upstream],"master") }}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro get_line(hostgroup,prefix) %}
+    {{ prefix }}: [{{ hostgroup | join(", ", attribute="server") }}]
+{%- endmacro -%}

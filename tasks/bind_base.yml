@@ -1,0 +1,23 @@
+---
+- name: Install the Bind Suite.
+  apt:
+    pkg: "{{ nameserver_package_bind }}"
+    state: present
+    install_recommends: false
+  when: nameserver_package_bind is defined and base_bind_complete is not defined
+  tags:
+    - package
+
+- name: Disabled base Bind9 service.
+  service:
+    name: bind9
+    state: stopped
+    enabled: false
+  when: base_bind_complete is not defined
+  tags:
+    - package
+
+- name: Set base_bind as completed.
+  set_fact:
+    base_bind_complete: true
+  when: nameserver_package_bind is defined and base_bind_complete is not defined

@@ -1,0 +1,100 @@
+{% macro zone_group(zone_groups) %}
+{%  if zone_groups is string %}
+// One group called {{ zone_groups }}
+{{   full_zone(zone_groups) }}
+{%  else %}
+{%   for group_name in zone_groups %}
+// Processing zone group {{ group_name }}
+{{    full_zone(group_name) }}
+{%   endfor %}
+{%  endif %}
+{% endmacro %}
+
+
+{% macro full_zone(group_name) %}
+{% if nameserver_zone_groups[group_name] is defined %}
+{%  set zone_set = nameserver_zone_groups[group_name] %}
+// Group: {{ group_name }}
+// Upstream: {{ zone_set.settings.upstream if zone_set.settings.upstream is defined else "Not defined" }}
+// Downstream: {{ zone_set.settings.downstream if zone_set.settings.downstream is defined else "Not defined" }}
+{%  for zone in zone_set.zones %}
+zone "{{ zone.name }}" {
+{%   if zone_set.settings.upstream is defined %}
+  type slave;
+  multi-master yes;
+  masterfile-format {{ zone_set.settings.fileformat | default("raw") }};
+  file "/etc/zones/slave/{{ zone.name }}";
+  masters {
+    {{ zone_set.settings.upstream }};
+  };
+  allow-notify {
+    {{ zone_set.settings.upstream }};
+  };
+{%   else %}
+  type master;
+  file "/etc/zones/master/{{ zone.name }}";
+{%   endif %}
+  allow-transfer {
+{%   if zone_set.settings.downstream is defined %}
+    {{ zone_set.settings.downstream }};
+{%   endif %}
+  };
+{%   if zone_set.settings.downstream is defined %}
+  also-notify {
+{{ send_to(zone_set.settings.downstream) | indent(4, true) }}
+  };
+{%   endif %}
+};
+{%  endfor %}
+{% else %}
+// Group {{ group_name }} has not been defined
+{% endif %}
+{% endmacro %}
+
+{% macro get_hostgroup(hostgroup,ka) %}
+{%-  if nameserver_host_groups is defined and
+          nameserver_host_groups[hostgroup] is defined %}
+{%-   for host in nameserver_host_groups[hostgroup] %}
+{{ get_host(host,ka) }}
+{%-   endfor %}
+{%-  else %}
+// Hostgroup not found.
+{%-  endif %}
+{% endmacro %}
+
+{% macro get_host(host,ka) %}
+   // Host: {{ host.server }}
+{%  if ka == "and" %}
+   {{ host.ip }} port {{ host.port|default("53") }}{% if host.tsig is defined %} key "{{ host.tsig }}"{% endif %};
+{%  elif ka == "host" %}
+   {{ host.ip }};
+{%  else %}
+{%   if host.tsig is defined %}
+   key "{{ host.tsig }}";
+{%   else %}
+   {{ host.ip }};
+{%   endif %}
+{%  endif %}
+{% endmacro %}
+
+{% macro send_to(hostgroup) %}
+{% if nameserver_host_groups[hostgroup] is defined %} 
+{%   set hg_data = nameserver_host_groups[hostgroup] %}
+{%   for server in hg_data %}
+// {{ server.server }}
+{%     if server.ip is string %}
+{{ server.ip }} port {{ server.port | default(53) }}
+{%- if server.tsig is defined %} key "{{ server.tsig }}"{% endif %};
+{%     else %}
+{%       for addr in server.ip %}
+{{ addr }} port {{ server.port | default(53) }}
+{%         if server.tsig is defined %}
+  key "{{ server.tsig }}";
+{%         endif %}
+{%       endfor %}
+{%     endif %}
+{%   endfor %}
+{% else %}
+// Opps that hostgroup {{ hostgroup }} is defined.
+{% endif %}
+{% endmacro %}

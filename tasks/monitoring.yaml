@@ -1,0 +1,10 @@
+---
+- name: Push out testing scripts.
+  copy: dest="/usr/local/bin/{{ item }}"
+        src="usr/local/bin/{{ item }}"
+        mode=0755 owner=root group=root
+  loop:
+    - check_soa_sync
+    - check_dns_timing
+  tags:
+    - scripts

@@ -1,0 +1,21 @@
+{% set severity = instance.log_severity if instance.log_severity is defined else nameserver_log.severity %}
+{% set facility = instance.log_facility if instance.log_facility is defined else nameserver_log.facility %}
+{% set log_file = instance.log_file if instance.log_file is defined else nameserver_log.file %}
+{% set log_syslog = instance.log_syslog if instance.log_syslog is defined else nameserver_log.syslog %}
+log:
+{% if log_syslog %}
+  - target: syslog
+    any: {{ severity }}
+
+{% endif %}
+{% if log_file %}
+  - target: {{ instance_base_dir }}/var/log/server.log
+    server: {{ severity }}
+#  - target: /var/log/control.log
+#    control: {{ severity }}
+  - target: {{ instance_base_dir }}/var/log/zone.log
+    zone: {{ severity }}
+  - target: {{ instance_base_dir }}/var/log/any.log
+    any: {{ severity }}
+{% endif %}
+

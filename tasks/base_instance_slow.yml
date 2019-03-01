@@ -1,0 +1,91 @@
+---
+- name: Set some variables we'll need later.
+  set_fact:
+    instance_base_dir: "{{ nameservice_chroot_base }}/{{ instance.name }}"
+    instance_user: "{{ instance.user| default(nameservice_chroot_defaults.user) }}"
+    instance_group: "{{ instance.group| default(nameservice_chroot_defaults.group) }}"
+    instance_timezone: "{{ instance.timezone| default(nameservice_chroot_defaults.timezone) }}"
+
+- name: Create a group for the user for the instance.
+  group:
+    name: "{{ instance_group }}"
+    state: present
+    system: true
+
+- name: Create the user for the instance.
+  user:
+    name: "{{ instance_user }}"
+    group: "{{ instance_group }}"
+    shell: "/usr/bin/false"
+    createhome: false
+    system: true
+    state: present
+
+- name: Create base directories (non-writeable)
+  file:
+    path: "{{ instance_base_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  with_items:
+    - dev
+    - var/cache
+    - etc/zones/default
+  tags:
+    - firsttime
+
+- name: Create base directories (writeable, for ext_group)
+  file:
+    path: "{{ instance_base_dir }}/{{ item }}"
+    state: directory
+    mode: "0775"
+    group: "{{ ext_group| default('root') }}"
+    owner: root
+  with_items:
+    - etc/zones/master
+    - etc/external
+  tags:
+    - firsttime
+
+- name: Create base directories (writeable)
+  file:
+    path: "{{ instance_base_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ instance_user }}"
+    group: "{{ instance_group }}"
+  with_items:
+    - etc/zones/slave
+    - var/cache/managed-keys
+    - var/run
+    - var/log
+  tags:
+    - firsttime
+
+- name: Create common device nodes
+  command: "/bin/mknod -m 0666 {{ instance_base_dir }}/{{ item.file }} {{ item.attrib }}"
+  args:
+    creates: "{{ instance_base_dir }}/{{ item.file }}"
+  with_items:
+    - file: 'dev/null'
+      attrib: 'c 1 3'
+    - file: 'dev/zero'
+      attrib: 'c 1 5'
+    - file: 'dev/random'
+      attrib: 'c 1 9'
+    - file: 'dev/urandom'
+      attrib: 'c 1 9'
+  # No that's not a mistype, we don't actually want random, we want urandom.
+  tags:
+    - firsttime
+
+- name: Setup timezone for this instance
+  file:
+    src: "/usr/share/zoneinfo/{{ instance_timezone }}"
+    state: hard
+    follow: true
+    path: "{{ instance_base_dir }}/etc/localtime"
+    force: true
+  tags:
+    - firsttime

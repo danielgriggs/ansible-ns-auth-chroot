@@ -1,0 +1,216 @@
+#!/usr/bin/perl -w
+
+
+require 5.004;
+use POSIX;
+use strict;
+use Getopt::Long;
+use English;
+use File::Basename;
+use Net::DNS::Resolver;
+use Net::DNS::Packet;
+use Net::DNS::RR;
+use Time::HiRes;
+
+use vars qw($opt_V $opt_h $opt_H $opt_i $opt_c $opt_w $opt_t $opt_r $opt_p $opt_l $opt_e $opt_n $PROGNAME $verbose);
+use lib "/usr/lib/nagios/plugins"; 
+use utils qw($TIMEOUT %ERRORS &print_revision &support);
+
+$PROGNAME="check_dns_timing";
+
+sub print_help();
+sub print_usage();
+
+$ENV{'PATH'}='';
+$ENV{'BASH_ENV'}='';
+$ENV{'ENV'}='';
+
+Getopt::Long::Configure('bundling');
+GetOptions
+	("V"   => \$opt_V,   "version"    => \$opt_V,
+	 "h"   => \$opt_h,   "help"       => \$opt_h,
+	 "n"   => \$opt_n,   "tcp"        => \$opt_n,
+	 "v"   => \$verbose, "verbose"    => \$verbose,
+	 "e"   => \$opt_e,   "error-ok"   => \$opt_e,
+	 "p=i" => \$opt_p,   "port=i"     => \$opt_p,
+	 "i=i" => \$opt_i,   "iterations=i"=> \$opt_i,
+	 "r=s" => \$opt_r,   "record=s"   => \$opt_r,
+	 "t=s" => \$opt_t,   "type=s"     => \$opt_t,
+	 "l=s" => \$opt_l,   "class=s"    => \$opt_l,
+	 "w=f" => \$opt_w,   "warning=f"  => \$opt_w,
+	 "c=f" => \$opt_c,   "critical=f" => \$opt_c,
+	 "H=s" => \$opt_H,   "hostaddr=s" => \$opt_H);
+
+if ($opt_V) {
+    print_revision($PROGNAME,'$Revision: 0.01 $ ');
+    exit $ERRORS{'OK'};
+}
+
+if ($opt_h) {
+    print_help();
+    exit $ERRORS{'OK'};
+}
+
+$opt_H = shift unless ($opt_H);
+
+my $host = undef;
+$host = $1 if ($opt_H && $opt_H =~ m/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|[a-zA-Z][-a-zA-Z0-9]+(\.[a-zA-Z][-a-zA-Z0-9]+)*)$/);
+$host = $1 if ($opt_H && $opt_H =~ m/^([0-9a-f:]+)$/i);
+unless ($host) {
+    print "No target host specified\n";
+    print_usage();
+    exit $ERRORS{'UNKNOWN'};
+}
+
+# Set defaults.
+# Number of test packets.
+my $iterations = 1;
+# threshold in Seconds, CLI gets /1000.
+my $critical = 2;
+my $warning = 1;
+my $port = '53';
+# use TCP?
+my $tcp = 0;
+# Default query.
+my $record = 'ID.SERVER';
+my $type   = 'TXT';
+my $class  = 'CH';
+# Are error responses counted?
+my $errorok = 0;
+
+# Process command line options
+($opt_i) && ($opt_i =~ /^(\d)$/) && ($iterations = $1);
+($opt_c) && ($opt_c =~ /^(\d+)$/) && ($critical = $1/1000);
+($opt_w) && ($opt_w =~ /^(\d+)$/) && ($warning = $1/1000);
+($opt_p) && ($opt_p =~ m/^\d+$/) && ($port = $opt_p);
+
+if ( $opt_e ) {
+    $verbose && print "Errors ignored as long as we get a response.\n";
+    $errorok = $opt_e;
+}
+
+if ( $opt_n ) {
+    $verbose && print "Switching to TCP, you monster.\n";
+    $tcp = $opt_n;
+}
+
+
+if ( $verbose ) {
+    print "Setting thresholds (secs), warning=>$warning<, critical=>$critical<\n";
+}
+
+if ( $warning > $critical ) {
+    print "Warning level should be less then Critical\n";
+    print_usage();
+    exit $ERRORS{'UNKNOWN'};    
+}
+
+if ( $opt_r ) {
+    $verbose && print "command line record specified as >$opt_r<\n";
+    $record = $opt_r;
+}
+
+if ( $opt_t ) {
+    $verbose && print "command line rr type specified as >$opt_t<\n";
+    $type = $opt_t;
+}
+
+unless ($type eq 'SOA' || $type eq 'A' || $type eq 'MX' || $type eq 'NS' || $type eq 'TXT' ) {
+    print "Resource type must be of type SOA, A, NS or MX, you entered >$type<\n";
+    print_usage();
+    exit $ERRORS{'UNKNOWN'};
+}
+
+if ( $opt_l ) {
+    $verbose && print "command line rr class specified as >$opt_l<\n";
+    $class = $opt_l;
+}
+
+unless ( $class eq 'CH' || $class eq 'IN' ) {
+    print "Resource class must be of type CH, or IN, you entered $class\n";
+    print_usage();
+    exit $ERRORS{'UNKNOWN'};
+}
+
+# Set the DNS lookup timeout to be double the critical alert time.
+my $udp_timeout = $critical * 2;
+if ( $udp_timeout < 1 ) {
+    $verbose && print "UDP timeout set to $udp_timeout, sadly it only takes integers.\n";
+
+}
+
+my ($res, $req);
+$res = new Net::DNS::Resolver;
+$res->defnames(0);
+$res->recurse(0);
+$res->retry(1);
+$res->port($port);
+$res->usevc($tcp);
+$res->udp_timeout($udp_timeout);
+$res->tcp_timeout($udp_timeout);
+$res->nameservers($host);
+
+$verbose && print "Setting up request for record $record, of type $type, and class $class, ";
+$verbose && print "to host $host with timeout $udp_timeout secs\n";
+
+my $test =  [Time::HiRes::gettimeofday()];
+my $start_time = [Time::HiRes::gettimeofday()];
+my $timed_out = 0;
+for ( my $c = 0; $c < $iterations; $c++ ) {
+    $verbose && print "Sending... ";
+    $req = $res->send($record, $type, $class);
+    if ( ! defined($req) ) {
+	$timed_out++;
+#	$verbose && print "Request timed out\n";
+    }
+    $verbose && print $res->errorstring;
+    $verbose && print "\n";
+}
+
+my $diff = Time::HiRes::tv_interval($start_time);
+my $query_avg = $diff/$iterations;
+
+$verbose && print "Total time taken $diff seconds for $iterations iteration(s)\n";
+
+if ( ! $errorok && $req && $req->header->ancount <= 0 ) {
+    print "CRITICAL Query $class/$type/$record from $host failed (" . $res->errorstring . ")\n";
+    exit $ERRORS{'CRITICAL'};
+}
+
+my $status = 'OK';
+if ( $query_avg > $warning ) {
+    if ( $query_avg > $critical ) {
+	$status = 'CRITICAL';
+    } else {
+	$status = 'WARNING';
+    }
+}
+if ( $timed_out == $iterations ) {
+    $status = 'CRITICAL';
+}
+
+print $status . " Response Time: " . $query_avg*1000 . "ms";
+print " Replies: " . ( $iterations - $timed_out ) . "/" . $iterations;
+print " (" . $res->errorstring  . ")";
+print "| time=" . $query_avg . "s";
+print " replies=" . ( $iterations - $timed_out ) . ";" . $iterations;
+print "\n";
+
+
+exit $ERRORS{$status};
+
+#### subs
+
+sub print_usage () {
+	print "Usage: $PROGNAME -H <host ip> [-i <iterations>] [-l <rr class>] -t <rr type> -r <rr> [-v verbose]\n";
+	print "                 -w <max response in ms warning> -c <max response in ms critical>\n";
+	print "                 [-e --error-ok Ignore errors, just check the response time]\n";
+	print "                 [-n --tcp Use TCP, rather than UDP]\n";
+	print "\n";
+}
+
+sub print_help () {
+	print_revision($PROGNAME,'$Revision: 0.01 $');
+	print "\n";
+	print_usage();
+}

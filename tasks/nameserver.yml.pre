@@ -1,0 +1,44 @@
+---
+# Run the universal settings that needs to be universalled.
+- name: Create base directory for chroots.
+  file:
+    path: "{{ nameserver_chroot_base }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+# If nameserver_instance contains <format>
+# include base_<format>
+# Base includes installation of packages.
+# Disabling of the base instance.
+
+#- name: Setup base installations.
+#  include: "{{ item.server }}_base.yml"
+#  with_items: "{{ nameserver_instances }}"
+
+- name: Setup base installations.
+  include_tasks: "{{ ns.server }}_base.yml"
+  loop: "{{ nameserver_instances|flatten(levels=1) }}"
+  loop_control:
+    loop_var: ns
+    label: "For {{ ns.name }}"
+
+# If nameserver_instance
+# For each nameserver_instance create the chroot structure.
+# and ensures the user (optional) has been created.
+# include base_instance
+
+- name: Setup chroots per host.
+  include: "base_instance.yml"
+  with_items: "{{ nameserver_instances }}"
+  loop_control:
+    loop_var: instance
+    label: "{{ instance.name }}"
+
+
+- name: Setup firewalling.
+  include: "ufw.yml"
+  tags:
+    - ufw
+    - firewall

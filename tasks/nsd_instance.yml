@@ -1,0 +1,7 @@
+---
+- name: Set permissions on certificate files.
+  file:
+    path: '/etc/nsd/'
+    state: 'directory'
+    recurse: 'yes'
+    group: "{{ instance_group }}"

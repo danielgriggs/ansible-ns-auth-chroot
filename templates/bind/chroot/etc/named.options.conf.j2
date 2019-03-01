@@ -1,0 +1,50 @@
+// File managed by Ansible.
+options {
+
+{% if instance_identify is defined and instance_identify %}
+    server-id "{{ ansible_hostname }}";
+    hostname "{{ ansible_hostname }}";
+{% else %}
+    hostname none;
+{% endif %}
+    version "unavailable";
+    minimal-responses yes;
+
+    pid-file "/var/run/nameserver.pid";
+    session-keyfile "/var/run/session.key";
+    directory "/var/run";
+{% if instance.listen is defined %}
+{%   for port, addr_fam in instance.listen|dictsort %}
+{%     if addr_fam.v4_addr is defined %}
+    listen-on port {{ port }} {
+{{ addr_fam.v4_addr|join(";\n")|indent(8, True) }};
+    };
+{%     endif %}
+{%     if addr_fam.v6_addr is defined %}
+    listen-on-v6 port {{ port }} {
+{{ addr_fam.v6_addr|join(";\n")|indent(8, True) }};
+    };
+{%     endif %}
+{%   endfor %}
+{% endif %}
+
+{% if instance.source_v4 is defined %}
+    transfer-source {{ instance.source_v4 }};
+    notify-source {{ instance.source_v4 }};
+{% endif %}
+{% if instance.source_v6 is defined %}
+    transfer-source-v6 {{ instance.source_v6 }};
+    notify-source-v6 {{ instance.source_v6 }};
+{% endif %}
+
+{% if instance.rrl_qps is defined %}
+    rate-limit {
+        responses-per-second {{ instance.rrl_qps }};
+        slip {{ instance.rrl_slip | default("1") }};
+    };
+{% else %}
+// No RRL is configured.
+{% endif %}
+
+};
+

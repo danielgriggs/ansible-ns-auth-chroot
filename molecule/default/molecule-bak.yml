@@ -1,0 +1,64 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider:
+    name: vmware_fusion
+lint:
+  name: yamllint
+platforms:
+  - name: nameserver_01
+    box: dene/ubuntu-xenial
+    instance_raw_config_args:
+      - 'vm.synced_folder ".", "/vagrant", disabled: true'
+  - name: nameserver_02
+    box: dene/ubuntu-xenial
+    instance_raw_config_args:
+      - 'vm.synced_folder ".", "/vagrant", disabled: true'
+ansible:
+  inventory_file: inventory_test.yml
+provisioner:
+  name: ansible
+  lint:
+    name: ansible-lint
+  inventory:
+    host_vars:
+      instance:
+        srs_apt_key_id: 'B7578F90'
+        srs_apt_key: |
+          -----BEGIN PGP PUBLIC KEY BLOCK-----
+          Version: GnuPG v1
+
+          mQINBFd14H8BEADUSJ/gCiyh6x4YkwDKaf/WSFxzoytS4IpoHBYx79ci4w1aRYlA
+          Luzv+zFTrqbrPL8XXD6/LBo72oDQ4Tdj9I/Wz3CHJ621liftG6ll8rWuOjOw2GdD
+          +x3Q6IRNg/WntAu6tm2E+HSk9ZI98bqYjbQaftd557hw8TIBZrIMo+4fLF0SINrp
+          ygtvMrYfsKHJ1gn+ZcWdKZToS+hxh3twAK/ddSFE1ivqxkWiRxn+UvUxTMnCQ+Tu
+          H3mg4gN+/Efa41KGAoTAPDziMm14Fb6pe3zYuGeOef2JvyUVW9pSC6Yipfbp9JjF
+          X+cwBt3UeJMWlVOSP5itOsS3OBItoDKcWNETjDi8hFPvpGZn2MhCGt1f5xXsyDBC
+          +b4tTCe1rRlXeXS586C5FboWJt2MoQTPercxNMaYl0B38SVbVSeR97zpZFvFRenf
+          TyRFaRKd5ay6uCtB6Ll2KJHeJxcR83wocbWGVq+BSvclnQDW2GrrlMo0Hh7TLAzm
+          6ASjuNxxVwTpRfBZ0GIDqBZLcFf1wsD9db+S+g9XFRJJCe26F1K/qwzLNISYJatf
+          8oEnJ7Zqfe3brlco0m4um3NNXbPIK8SfwRXm3FIRpgVz06Gplt7m/ZViMhrBtUT5
+          cqTLYu2T2x2xwxocvwzj+CfCUwAdg6vlj9mBP3GlVYZc+xDVnixa/P+0XwARAQAB
+          tCROWlJTIFBhY2thZ2VzIDxwYWNrYWdlc0BuenJzLm5ldC5uej6JAjgEEwECACIF
+          Ald14H8CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEO6qiYi3V4+QCjIP
+          /1xnWmQwLb1ePjaDbOMKs6JNDxRwTQ/E0HGmczp+cN0tAF7NIdPUD9ZM0fXzErFm
+          X0tOQQW8UL5Y1m6oyFbtYF9Px6+0Tdce7cLfeAESS6zWfT1ZSxGwvOCSH7IbWfhf
+          IokGenzUrSpX6J4NSYfcR8eII9234dLGxY8qTwK5R63OhDp+KtN2A5Nm+KBjj8Aa
+          QsghPA2sYxacXUIoeZks5y5nq1i2POuPxF4OZNgxQLm9IVscJnZu4xva6e68AhMg
+          xD3buECBoIXTf2v8GLmw6mQGgHoN+5MHht/zi6W9zeO3B2tMGi4O4aunfI0o9adO
+          St6vQ9FDrE3WQWqtRziknXnNfovNX+Sj4TBxKDGTtZ6CkLwmkFW8w2NHAlEkcAxi
+          uTuK6ZU4hNdfUwOnu5RCcBFvE5+r/oKOgEOeafHO7OyJI8pD2L7eWzORvMJyITFX
+          5xbq2HjICvF1StoV6vDbjZvGIxlkovGt+LPzvUHHnJqKaLS4aRCcBsVeTJt0OI5S
+          PduMk6CM2dKTQ98TKf/0fl5fKOZF9///sYdH1ZFuwXgmKNQ1tcrIR7dqv/6068YY
+          WPabd+E4FFlei/YXVvKNC+IyrwErJ2bfyM/8DfIzWEm1cc8Mc1nWAuvto4TDjJIK
+          9YbV7s1F7ivaDS1Sd9rJUBBZno/xZF87GW7YvzuKU5ms
+          =Azw6
+          -----END PGP PUBLIC KEY BLOCK-----
+scenario:
+  name: default
+verifier:
+  name: testinfra
+  lint:
+    name: flake8

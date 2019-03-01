@@ -1,0 +1,73 @@
+{% macro zone_group(zone_groups) %}
+{%  if zone_groups is string %}
+# One group called {{ zone_groups }}
+{{   full_zone(zone_groups) }}
+{%  else %}
+{%   for group_name in zone_groups %}
+# Processing zone group {{ group_name }}
+{{    full_zone(group_name) }}
+{%   endfor %}
+{%  endif %}
+{% endmacro %}
+
+
+{% macro full_zone(group_name) %}
+{% if nameserver_zone_groups[group_name] is defined %}
+{%  set zone_set = nameserver_zone_groups[group_name] %}
+# Upstream Group: {{ zone_set.settings.upstream if zone_set.settings.upstream is defined else "Not defined" }}
+# Downstream Group: {{ zone_set.settings.downstream if zone_set.settings.downstream is defined else "Not defined" }}
+pattern:
+  name: {{ group_name }}
+  # multi-master-check: yes
+{%  if zone_set.settings.upstream is defined %}
+  zonefile: /etc/zones/slave/%s
+  # Hosts to accept notifies from.
+{{   get_hostgroup(zone_set.settings.upstream,"allow-notify") | indent(2, true) }}
+  # Hosts to get transfers from.
+{{   get_hostgroup(zone_set.settings.upstream,"request-xfr") | indent(2, true) }}
+{%  else %}
+  zonefile: /etc/zones/master/%s
+{%  endif %}
+{%  if zone_set.settings.downstream is defined %}
+  # Send notifies to these hosts.
+{{   get_hostgroup(zone_set.settings.downstream,"notify") | indent(2, true) }}
+  # Allow transfers from these hosts.
+{{   get_hostgroup(zone_set.settings.downstream,"provide-xfr") | indent(2, true) }}
+{%  endif %}
+{%  if instance.source_v4 is defined %}
+  outgoing-interface: {{ instance.source_v4 }}
+{%  else %}
+{%   if instance.source_v6 is defined %}
+  outgoing-interface: {{ instance.source_v6 }}
+{%   endif %}
+{%  endif %}
+
+# Zones
+{%  for zone in zone_set.zones %}
+zone:
+  name: {{ zone.name }}
+  include-pattern: {{ group_name }}
+
+{%  endfor %}
+{%  else %}
+# Group {{ group_name }} has not been defined
+{% endif %}
+{% endmacro %}
+
+{% macro get_hostgroup(hostgroup,prefix) %}
+{%-  if nameserver_host_groups is defined and
+          nameserver_host_groups[hostgroup] is defined %}
+{%-   for host in nameserver_host_groups[hostgroup] %}
+{{ get_host(host,prefix) }}
+{%-   endfor %}
+{%-  else %}
+# Hostgroup not found.
+{%-  endif %}
+{% endmacro %}
+
+
+{% macro get_host(host,prefix) %}
+{{ prefix }}: {{ host.ip }} {{ host.tsig if host.tsig is defined else "NOKEY" }}
+{% endmacro %}
+
+
