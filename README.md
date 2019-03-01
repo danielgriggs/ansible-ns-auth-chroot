@@ -10,7 +10,7 @@ There are no requirements, though you'll need internet access to download packag
 
 Role Variables
 --------------
-
+```YAML
 nameserver_instances:
   - name: knot                   # name for the instance.
     index: 0                     # index, hope to make this optional.
@@ -50,7 +50,7 @@ nameserver_tsig_keys:
   knot-tsig:                      # Name of the tsig key.
     key: '<some key>'             # Some base64 encoded key.
     algorithm: hmac-sha512        # The algorithm used.
-
+```
 
 Dependencies
 ------------
